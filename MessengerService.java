@@ -7,7 +7,6 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
-import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
 
@@ -31,7 +30,6 @@ public class MessengerService extends Service {
             for (int i=0;i<clients.size();i++)
             {
                 sendPosition(clients.get(i));
-                Log.i("ERRR","SENT CLIENT INFO");
             }
 
             if (clients.size() == 0)
@@ -101,7 +99,15 @@ public class MessengerService extends Service {
 
     @Override
     public void onCreate() {
-        //FlatSettings.Load();
+        super.onCreate();
+        FlatSettings.Load(this);
+
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        FlatSettings.Save(this);
     }
 
     @Override
