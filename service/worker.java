@@ -91,7 +91,7 @@ public class worker extends Service implements locationSimulator.listener {
     @Override
     public void onLocationChanged(LatLng nLatLng)
     {
-        for (int i=clients.size()-1;i>0;i--)
+        for (int i = clients.size() - 1; i >= 0; i--)
         {
             sendPosition(clients.get(i), nLatLng);
         }
@@ -100,7 +100,7 @@ public class worker extends Service implements locationSimulator.listener {
     @Override
     public void onFirstCoordRemoved()
     {
-        for (int i=clients.size()-1;i>0;i--)
+        for (int i = clients.size() - 1; i >= 0; i--)
         {
             sendFirstCleared(clients.get(i));
         }
@@ -109,7 +109,7 @@ public class worker extends Service implements locationSimulator.listener {
     @Override
     public void onCoordCleared()
     {
-        for (int i=clients.size()-1;i>0;i--)
+        for (int i = clients.size() - 1; i >= 0; i--)
         {
             sendCleared(clients.get(i));
         }
