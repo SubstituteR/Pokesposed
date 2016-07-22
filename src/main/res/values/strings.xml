@@ -1,0 +1,13 @@
+<resources>
+    <string name="app_name">Pokesposed</string>
+    <string name="clear_btn">Clear map</string>
+    <string name="settings_btn">Settings</string>
+    <string name="title_activity_maps">Map</string>
+    <string name="title_activity_settings">Settings</string>
+
+    <string-array name="movement_mode">
+        <item>Teleport</item>
+        <item>Walk</item>
+    </string-array>
+
+</resources>
