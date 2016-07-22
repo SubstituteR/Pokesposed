@@ -1,0 +1,50 @@
+package com.rileystrickland.pokesposed;
+
+import android.os.Bundle;
+import android.os.Message;
+import android.os.Messenger;
+
+import com.google.android.gms.maps.model.LatLng;
+import com.rileystrickland.pokesposed.service.messageCode;
+
+public class networkCommands {
+
+    public static void send(Messenger messenger, Message message)
+    {
+        try {
+            messenger.send(message);
+        }catch (Throwable e){}
+    }
+
+    public static void sendNewLatLng(Messenger messenger, LatLng latlng)
+    {
+        Message message = Message.obtain(null, messageCode.MSG_ADD_LL);
+        Bundle bundle = new Bundle();
+        bundle.putDouble("x", (float) latlng.latitude);
+        bundle.putDouble("y", (float) latlng.longitude);
+        message.setData(bundle);
+        send(messenger, message);
+    }
+
+    public static void sendClearLatLng(Messenger messenger)
+    {
+        Message message = Message.obtain(null, messageCode.MSG_CLEAR_LL);
+        send(messenger, message);
+    }
+
+    public static void sendFirstCleared(Messenger messenger)
+    {
+        Message message = Message.obtain(null, messageCode.MSG_DEL_LL);
+        send(messenger, message);
+    }
+
+    public static void sendPosition(Messenger messenger, LatLng position)
+    {
+        Message message = Message.obtain(null, messageCode.MSG_POS);
+        Bundle bundle = new Bundle();
+        bundle.putDouble("x", position.latitude);
+        bundle.putDouble("y",  position.longitude);
+        message.setData(bundle);
+        send(messenger, message);
+    }
+}
