@@ -8,6 +8,7 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
+import android.util.Log;
 
 import com.google.android.gms.maps.model.LatLng;
 import com.rileystrickland.pokesposed.networkCommands;
@@ -104,7 +105,9 @@ public class worker extends Service implements locationSimulator.listener {
     }
 
     public worker() {
+
         context = this;
+        Log.d("ASED","ASDASDF");
     }
 
     /*

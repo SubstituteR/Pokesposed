@@ -127,8 +127,13 @@ public class run implements IXposedHookLoadPackage  {
             {
                 Messenger = new Messenger(new IncomingHandler());
             }
-            Intent intent = new Intent("com.rileystrickland.pokesposed.service.worker");
-            AndroidAppHelper.currentApplication().bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+            Intent intent = new Intent();
+            ComponentName cn = new ComponentName("com.rileystrickland.pokesposed", "com.rileystrickland.pokesposed.service.worker");
+            intent.setComponent(cn);
+            if (!context.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE))
+            {
+                Toast.makeText(AndroidAppHelper.currentApplication(), "Unable to start service!", Toast.LENGTH_SHORT).show();
+            }
             return true;
         }
         return false;

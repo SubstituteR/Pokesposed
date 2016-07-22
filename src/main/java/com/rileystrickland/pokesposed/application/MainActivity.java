@@ -18,6 +18,8 @@ import android.support.v4.content.ContextCompat;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
+import android.widget.Toast;
+
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
@@ -74,12 +76,12 @@ public class MainActivity extends Activity implements OnMapReadyCallback{
         super.onCreate(savedInstanceState);
 
         if (!Global.loaded) {
-            AlertDialog.Builder dlgAlert = new AlertDialog.Builder(this);
-            dlgAlert.setTitle("Module not loaded");
-            dlgAlert.setMessage("Open Xposed and enable the Module before trying to use the companion app!");
-            dlgAlert.setPositiveButton("Ok", dong);
-            dlgAlert.create().show();
-            return;
+            //AlertDialog.Builder dlgAlert = new AlertDialog.Builder(this);
+            //dlgAlert.setTitle("Module not loaded");
+            //dlgAlert.setMessage("Open Xposed and enable the Module before trying to use the companion app!");
+            //dlgAlert.setPositiveButton("Ok", dong);
+            //dlgAlert.create().show();
+            //return;
         }
 
 
@@ -139,7 +141,7 @@ public class MainActivity extends Activity implements OnMapReadyCallback{
             {
                 Messenger = new Messenger(new IncomingHandler());
             }
-            Intent intent = new Intent("com.rileystrickland.pokesposed.service.worker");
+            Intent intent = new Intent(this, com.rileystrickland.pokesposed.service.worker.class);
             this.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
             return true;
     }
