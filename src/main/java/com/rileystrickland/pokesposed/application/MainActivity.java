@@ -18,21 +18,19 @@ import android.support.v4.content.ContextCompat;
 import android.view.View;
 import android.view.Window;
 import android.view.WindowManager;
-import android.widget.Toast;
-
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.MapFragment;
 import com.google.android.gms.maps.OnMapReadyCallback;
+import com.google.android.gms.maps.model.BitmapDescriptorFactory;
+import com.google.android.gms.maps.model.CameraPosition;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.rileystrickland.pokesposed.R;
 import com.rileystrickland.pokesposed.networkCommands;
 import com.rileystrickland.pokesposed.service.messageCode;
-
 import java.util.ArrayList;
-import java.util.jar.Manifest;
 
 public class MainActivity extends Activity implements OnMapReadyCallback{
 
@@ -40,16 +38,13 @@ public class MainActivity extends Activity implements OnMapReadyCallback{
     private Messenger Messenger;
     private Messenger Service;
     private Marker positionMarker;
-
     private ArrayList<Marker> CoordMarkers = new ArrayList<>();
-
     private DialogInterface.OnClickListener dong = new DialogInterface.OnClickListener() {
         @Override
         public void onClick(DialogInterface dialog, int which) {
             finish();
         }
     };
-
 
 
     private ServiceConnection serviceConnection = new ServiceConnection() {
@@ -76,12 +71,12 @@ public class MainActivity extends Activity implements OnMapReadyCallback{
         super.onCreate(savedInstanceState);
 
         if (!Global.loaded) {
-            //AlertDialog.Builder dlgAlert = new AlertDialog.Builder(this);
-            //dlgAlert.setTitle("Module not loaded");
-            //dlgAlert.setMessage("Open Xposed and enable the Module before trying to use the companion app!");
-            //dlgAlert.setPositiveButton("Ok", dong);
-            //dlgAlert.create().show();
-            //return;
+            AlertDialog.Builder dlgAlert = new AlertDialog.Builder(this);
+            dlgAlert.setTitle("Module not loaded");
+            dlgAlert.setMessage("Open Xposed and enable the Module before trying to use the companion app!");
+            dlgAlert.setPositiveButton("Ok", dong);
+            dlgAlert.create().show();
+            return;
         }
 
 
@@ -94,18 +89,23 @@ public class MainActivity extends Activity implements OnMapReadyCallback{
     }
 
     @Override
-    protected void onDestroy()
+    protected void onStop()
     {
-        super.onDestroy();
-        networkCommands.sendDisconnect(Service);
-        this.unbindService(serviceConnection);
+        super.onStop();
+        if (applicationSettings.inSettings = false) {
+            disconnect();
+        }
+    }
+
+    @Override
+    protected void onStart()
+    {
+        super.onStart();
+        connect();
     }
 
     public void onMapReady(GoogleMap googleMap) {
-
-        connect();
         mMap = googleMap;
-        mMap.animateCamera(CameraUpdateFactory.zoomTo(17.5f));
 
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)
         {
@@ -129,21 +129,34 @@ public class MainActivity extends Activity implements OnMapReadyCallback{
     {
         Intent myIntent = new Intent(MainActivity.this, Settings.class);
         myIntent.putExtra("messenger", Service);
+        applicationSettings.inSettings = true;
         MainActivity.this.startActivity(myIntent);
     }
 
 
     /* network code */
 
-    private boolean connect()
+    private void connect()
     {
             if (Messenger == null)
             {
                 Messenger = new Messenger(new IncomingHandler());
             }
-            Intent intent = new Intent(this, com.rileystrickland.pokesposed.service.worker.class);
-            this.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
-            return true;
+            if (Service == null)
+            {
+                Intent intent = new Intent(this, com.rileystrickland.pokesposed.service.worker.class);
+                this.bindService(intent, serviceConnection, Context.BIND_AUTO_CREATE);
+            }
+    }
+
+    private void disconnect()
+    {
+        if (Service != null)
+        {
+            networkCommands.sendDisconnect(Service);
+            this.unbindService(serviceConnection);
+            Service = null;
+        }
     }
 
     class IncomingHandler extends Handler {
@@ -159,7 +172,7 @@ public class MainActivity extends Activity implements OnMapReadyCallback{
                         LatLng loc = new LatLng(bundle.getDouble("x", 0), bundle.getDouble("y", 0));
                         if (positionMarker == null)
                         {
-                            positionMarker = mMap.addMarker(new MarkerOptions().position(loc));
+                            positionMarker = mMap.addMarker(new MarkerOptions().position(loc).icon(BitmapDescriptorFactory.fromResource(R.drawable.pokeball)));
                         }else{
                             positionMarker.setPosition(loc);
                         }
@@ -170,9 +183,13 @@ public class MainActivity extends Activity implements OnMapReadyCallback{
                         applicationSettings.savedLatLng = new LatLng(bundle.getDouble("x", applicationSettings.savedLatLng.latitude),bundle.getDouble("y", applicationSettings.savedLatLng.longitude));
                         applicationSettings.hookEnabled = bundle.getBoolean("he", applicationSettings.hookEnabled);
                         applicationSettings.movementMode = bundle.getInt("mm", applicationSettings.movementMode);
+                        applicationSettings.movementSpeed = bundle.getInt("ms", applicationSettings.movementSpeed);
+                        applicationSettings.movementVariance = bundle.getDouble("mv", applicationSettings.movementVariance);
                         if (positionMarker == null)
                         {
-                            positionMarker = mMap.addMarker(new MarkerOptions().position(applicationSettings.savedLatLng));
+                            positionMarker = mMap.addMarker(new MarkerOptions().position(applicationSettings.savedLatLng).icon(BitmapDescriptorFactory.fromResource(R.drawable.pokeball)));
+                            CameraPosition cameraPosition = new CameraPosition.Builder().target(applicationSettings.savedLatLng).zoom(17.5f).build();
+                            mMap.animateCamera(CameraUpdateFactory.newCameraPosition(cameraPosition));
                         }else{
                             positionMarker.setPosition(applicationSettings.savedLatLng);
                         }
@@ -193,7 +210,15 @@ public class MainActivity extends Activity implements OnMapReadyCallback{
 
                     case messageCode.MSG_ADD_LL:
                         bundle = message.getData();
-                        addMarker(new LatLng(bundle.getDouble("x"),bundle.getDouble("y")));
+                        addMarker(new LatLng(bundle.getDouble("x"), bundle.getDouble("y")));
+                        break;
+
+                    case messageCode.MSG_DEL_LL:
+                        if (!CoordMarkers.isEmpty())
+                        {
+                            CoordMarkers.get(0).remove();
+                            removeMarker(0);
+                        }
                         break;
                     default:
                         super.handleMessage(message);
@@ -206,5 +231,13 @@ public class MainActivity extends Activity implements OnMapReadyCallback{
     {
         Marker marker = mMap.addMarker(new MarkerOptions().position(latlng));
         CoordMarkers.add(marker);
+    }
+
+    private void removeMarker(int index)
+    {
+        if (CoordMarkers.size() - 1 >= index)
+        {
+            CoordMarkers.remove(index);
+        }
     }
 }

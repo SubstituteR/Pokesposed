@@ -22,6 +22,7 @@
         android:text="Walk To Point"
         android:id="@+id/switch2"
         android:layout_below="@+id/switch1"
+        android:onClick="onWalkToggle"
         android:layout_alignParentStart="true" />
 
 
@@ -42,5 +43,67 @@
         android:layout_alignParentBottom="true"
         android:layout_alignParentRight="true"
         android:onClick="onCancelClick"/>
+
+    <RelativeLayout
+        android:orientation="vertical"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_below="@+id/switch2"
+        android:layout_centerHorizontal="true"
+        android:layout_above="@+id/button3"
+        android:visibility="visible"
+        android:id="@+id/walkingLayout" >
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:text="Walking Speed (km/h)"
+            android:id="@+id/textView"
+            android:gravity="center"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentStart="true"
+            android:layout_alignBottom="@+id/editText"
+            android:textColor="#000000" />
+
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:inputType="numberSigned"
+            android:ems="10"
+            android:id="@+id/editText"
+            android:gravity="center"
+            android:layout_alignParentTop="true"
+            android:layout_alignParentEnd="true"
+            android:layout_toEndOf="@+id/textView2"
+            android:text="8" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textAppearance="?android:attr/textAppearanceSmall"
+            android:text="Speed Varience (km/h)"
+            android:id="@+id/textView2"
+            android:labelFor="@id/editText"
+            android:gravity="center"
+            android:layout_alignBottom="@+id/editText2"
+            android:layout_alignParentStart="true"
+            android:layout_alignTop="@+id/editText2"
+            android:textColor="#000000" />
+
+        <EditText
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:inputType="numberDecimal"
+            android:ems="10"
+            android:id="@+id/editText2"
+            android:gravity="center"
+            android:layout_below="@+id/editText"
+            android:text="0.5"
+            android:layout_alignParentEnd="true"
+            android:layout_toEndOf="@+id/textView"
+            android:layout_alignStart="@+id/editText" />
+
+    </RelativeLayout>
 
 </RelativeLayout>

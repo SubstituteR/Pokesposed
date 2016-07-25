@@ -3,7 +3,6 @@ package com.rileystrickland.pokesposed;
 import android.os.Bundle;
 import android.os.Message;
 import android.os.Messenger;
-
 import com.google.android.gms.maps.model.LatLng;
 import com.rileystrickland.pokesposed.service.messageCode;
 

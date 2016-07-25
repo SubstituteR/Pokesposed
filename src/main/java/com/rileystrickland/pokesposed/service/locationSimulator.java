@@ -4,19 +4,23 @@ import android.location.Location;
 import android.os.Handler;
 import com.google.android.gms.maps.model.LatLng;
 import java.util.ArrayList;
+import java.util.Random;
 
 public class locationSimulator {
     public interface listener {
         void onLocationChanged(LatLng newLatLng);
+
         void onFirstCoordRemoved();
+
         void onCoordCleared();
+
         void onCoordAdded(LatLng newLatLng);
     }
+
     public listener listener;
 
 
-    locationSimulator(listener listener)
-    {
+    locationSimulator(listener listener) {
         this.listener = listener;
     }
 
@@ -26,8 +30,17 @@ public class locationSimulator {
     private LatLng nextLatLng = null;
     private int movementMode = movementModes.Teleport;
     private double ang = 0;
-    private final double speed = 1.38889; //1.38 m/s = 5 km/h
+    private int speed = 8;
+    private double speedVariance = 1.5;
+    private double calculatedSpeed = 0;
+    private Random rngesus = new Random();
     private Handler looper = null;
+
+    public LatLng getLastLatLng()
+
+    {
+        return lastLatLng;
+    }
 
     private Runnable runnable = new Runnable() {
         @Override
@@ -101,6 +114,7 @@ public class locationSimulator {
 
         if (movementMode == movementModes.Walk)
         {
+            calculatedSpeed = getNextSpeed();
             nextLatLng = coords.get(0); //get 1st
                     if (inDistance())
                     {
@@ -108,7 +122,7 @@ public class locationSimulator {
                         lastLatLng = nextLatLng;
                         removeFirstLatLng();
                     }else{
-                        lastLatLng = LatLngFromLatLng(lastLatLng,1,ang);
+                        lastLatLng = LatLngFromLatLng(lastLatLng, calculatedSpeed, ang);
                     }
         }else{
             lastLatLng = coords.get(coords.size() - 1); //get last, we're tp'ing
@@ -118,7 +132,22 @@ public class locationSimulator {
 
     }
 
+    private double getNextSpeed()
+    {
+        double rngesus_variance = rngesus.nextFloat() * speedVariance;
 
+        if (rngesus.nextBoolean())
+        {
+            rngesus_variance = -rngesus_variance;
+        }
+        return ((speed + rngesus_variance) * 1000) / (60*60);
+    }
+
+    public void setSpeed(int speed, double speedVariance)
+    {
+        this.speed = speed;
+        this.speedVariance = speedVariance;
+    }
 //                             ___
 //Rest is math...math is hard /-.-\
     private static double radiansFromDegrees(double degrees)
@@ -163,7 +192,7 @@ public class locationSimulator {
         float[] d = {0,0};
         Location.distanceBetween(lastLatLng.latitude, lastLatLng.longitude,nextLatLng.latitude,nextLatLng.longitude,d);
 
-        if (d[0] <= (1.5 * (speed * 10)))
+        if (d[0] <= 1.5 * calculatedSpeed)
         {
             return true;
         }else{

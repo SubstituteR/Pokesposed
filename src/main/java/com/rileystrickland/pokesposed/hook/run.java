@@ -8,7 +8,6 @@ import de.robv.android.xposed.XC_MethodHook;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
-
 import android.app.AndroidAppHelper;
 import android.content.ComponentName;
 import android.content.Context;

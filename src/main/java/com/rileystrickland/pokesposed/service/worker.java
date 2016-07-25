@@ -8,8 +8,6 @@ import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
-import android.util.Log;
-
 import com.google.android.gms.maps.model.LatLng;
 import com.rileystrickland.pokesposed.networkCommands;
 import java.util.ArrayList;
@@ -26,10 +24,7 @@ public class worker extends Service implements locationSimulator.listener {
     private void dropClient(Messenger messenger)
     {
         clients.remove(messenger);
-        if (clients.isEmpty())
-        {
-            this.stopSelf(); //force cleanup
-        }
+
     }
 
     class IncomingHandler extends Handler {
@@ -46,6 +41,8 @@ public class worker extends Service implements locationSimulator.listener {
                         bundle.putDouble("y", (float) serviceSettings.savedLatLng.longitude);
                         bundle.putBoolean("he", serviceSettings.hookEnabled);
                         bundle.putInt("mm", serviceSettings.movementMode);
+                        bundle.putInt("ms", serviceSettings.movementSpeed);
+                        bundle.putDouble("mv", serviceSettings.movementVariance);
 
                         if (!networkCommands.sendPrefernces(message.replyTo, bundle))
                         {
@@ -74,14 +71,17 @@ public class worker extends Service implements locationSimulator.listener {
 
                 case messageCode.MSG_PREF:
                     Bundle bundle = message.getData();
-                    serviceSettings.hookEnabled = bundle.getBoolean("he");
+                    serviceSettings.hookEnabled = bundle.getBoolean("he", true);
                     if (serviceSettings.hookEnabled)
                     {
                         LocationSimulator.Start();
                     }else{
                         LocationSimulator.Stop();
                     }
-                    serviceSettings.movementMode = bundle.getInt("mm");
+                    serviceSettings.movementMode = bundle.getInt("mm", movementModes.Teleport);
+                    serviceSettings.movementSpeed = bundle.getInt("ms", 8);
+                    serviceSettings.movementVariance = bundle.getDouble("mv", 0.5);
+                    LocationSimulator.setSpeed(serviceSettings.movementSpeed, serviceSettings.movementVariance);
                     serviceSettings.Save(context);
 
                     bundle = new Bundle();
@@ -89,7 +89,8 @@ public class worker extends Service implements locationSimulator.listener {
                     bundle.putDouble("y", (float) serviceSettings.savedLatLng.longitude);
                     bundle.putBoolean("he", serviceSettings.hookEnabled);
                     bundle.putInt("mm", serviceSettings.movementMode);
-
+                    bundle.putInt("ms", serviceSettings.movementSpeed);
+                    bundle.putDouble("mv", serviceSettings.movementVariance);
                     for (int i = clients.size() - 1; i >= 0; i--) {
                         if (!networkCommands.sendPrefernces(clients.get(i), bundle))
                         {
@@ -105,9 +106,7 @@ public class worker extends Service implements locationSimulator.listener {
     }
 
     public worker() {
-
         context = this;
-        Log.d("ASED","ASDASDF");
     }
 
     /*
@@ -126,8 +125,9 @@ public class worker extends Service implements locationSimulator.listener {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        serviceSettings.Save(context);
+        serviceSettings.savedLatLng = LocationSimulator.getLastLatLng();
         LocationSimulator.Stop();
+        serviceSettings.Save(context);
     }
 
 
