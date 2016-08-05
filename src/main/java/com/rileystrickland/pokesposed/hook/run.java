@@ -1,10 +1,12 @@
 package com.rileystrickland.pokesposed.hook;
 
 
+import static de.robv.android.xposed.XposedHelpers.callMethod;
 import static de.robv.android.xposed.XposedHelpers.findAndHookConstructor;
 import static de.robv.android.xposed.XposedHelpers.findAndHookMethod;
 import de.robv.android.xposed.IXposedHookLoadPackage;
 import de.robv.android.xposed.XC_MethodHook;
+import de.robv.android.xposed.XC_MethodReplacement;
 import de.robv.android.xposed.XposedBridge;
 import de.robv.android.xposed.XposedHelpers;
 import de.robv.android.xposed.callbacks.XC_LoadPackage.LoadPackageParam;
@@ -26,30 +28,38 @@ import android.widget.Toast;
 import com.google.android.gms.maps.model.LatLng;
 import com.rileystrickland.pokesposed.service.messageCode;
 
-public class run implements IXposedHookLoadPackage  {
-    private LatLng loc = new LatLng(0,0);
-    private boolean connected = false;
-    Messenger Messenger = null;
-    Messenger Service = null;
+import java.nio.ByteBuffer;
 
+public class run implements IXposedHookLoadPackage  {
+    private Location nloc = null;
+    private boolean connected = false;
+    private LoadPackageParam lpparam = null;
+    private Messenger Messenger = null;
+    private Messenger Service = null;
+    private int[] lastStatus = null;
 
     class IncomingHandler extends Handler {
         @Override
         public void handleMessage(Message message) {
             try
             {
-                Bundle bundle = null;
+                Bundle bundle;
                 switch (message.what) {
 
                     case messageCode.MSG_POS:
                         bundle = message.getData();
-                        loc = new LatLng(bundle.getDouble("x",0), bundle.getDouble("y",0));
+                        if (nloc != null)
+                        {
+                            nloc.setLatitude(bundle.getDouble("x", 0));
+                            nloc.setLongitude(bundle.getDouble("y", 0));
+                            nloc.setBearing(bundle.getFloat("b", 0));
+                            callLocation();
+                        }
                         break;
 
                     case messageCode.MSG_PREF:
                         bundle = message.getData();
                         hookSettings.hookEnabled = bundle.getBoolean("he", true);
-                        Log.d("Hook", "Got Pref");
                         break;
                     default:
                         super.handleMessage(message);
@@ -82,20 +92,21 @@ public class run implements IXposedHookLoadPackage  {
 
 
     public void handleLoadPackage(final LoadPackageParam lpparam) throws Throwable {
-
+        this.lpparam = lpparam;
 
         if (lpparam.packageName.equals("com.rileystrickland.pokesposed"))
         {
             Class<?> clazz = XposedHelpers.findClass("com.rileystrickland.pokesposed.application.Global", lpparam.classLoader);
-            XposedHelpers.setStaticBooleanField(clazz,"loaded",true);
+            XposedHelpers.setStaticBooleanField(clazz, "loaded", true);
         }
 
 
         if (lpparam.packageName.equals("com.nianticlabs.pokemongo"))
         {
             XposedBridge.log("Poke Mongo Detected.");
-            hookUnity(lpparam);
-            hookLocation(lpparam);
+            hookUnity();
+            hookLocation();
+            hookNetwork();
         }
 
 
@@ -103,7 +114,7 @@ public class run implements IXposedHookLoadPackage  {
     }
 
 
-    private void hookUnity(LoadPackageParam lpparam) {
+    private void hookUnity() {
 
         findAndHookConstructor("com.unity3d.player.UnityPlayerNativeActivity", lpparam.classLoader, new XC_MethodHook() {
             @Override
@@ -140,22 +151,48 @@ public class run implements IXposedHookLoadPackage  {
 
 
 
-    private void hookLocation(LoadPackageParam lpparam) {
+    private void hookLocation() {
         findAndHookMethod("com.nianticlabs.nia.location.NianticLocationManager", lpparam.classLoader, "locationUpdate", Location.class, int[].class, new XC_MethodHook() {
             @Override
             protected void beforeHookedMethod(MethodHookParam param) throws Throwable {
-            if (!connected)
-            {
-                connect();
-            }
-            if (param.args[0] != null && hookSettings.hookEnabled)
-            {
-                Location nloc = (Location) param.args[0];
-                nloc.setLatitude(loc.latitude);
-                nloc.setLongitude(loc.longitude);
-                param.args[0] = nloc;
-            }
+                if (!connected)
+                {
+                    connect();
+                }
+                if (param.args[0] != null && hookSettings.hookEnabled)
+                {
+                    Location cloc = (Location) param.args[0];
+                    if (nloc == null)
+                    {
+                        nloc = cloc;
+                    }
+                    cloc.setLatitude(nloc.getLatitude());
+                    cloc.setLongitude(nloc.getLongitude());
+                    cloc.setBearing(nloc.getBearing());
+                    param.args[0] = cloc;
+                }
+                if (param.args[1] != null)
+                {
+                    lastStatus = (int[]) param.args[1];
+                }
             }
         });
+    }
+
+    private void callLocation()
+    {
+        if (nloc != null)
+        {
+            callMethod("com.nianticlabs.nia.location.NianticLocationManager", "locationUpdate", nloc, lastStatus);
+        }
+    }
+
+    private void hookNetwork() {
+        /*findAndHookMethod("com.nianticlabs.nia.network.NiaNet", lpparam.classLoader, "doSyncRequest",long.class, int.class, String.class, int.class, String.class, ByteBuffer.class, int.class, int.class, new XC_MethodReplacement() {
+            @Override
+            protected Object replaceHookedMethod(MethodHookParam param) throws Throwable {
+                return null;
+            }
+        });*/
     }
 }

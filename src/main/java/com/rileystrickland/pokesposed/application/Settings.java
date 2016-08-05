@@ -1,9 +1,10 @@
 package com.rileystrickland.pokesposed.application;
 
-import android.content.Intent;
-import android.os.Messenger;
+import android.app.AlertDialog;
+import android.os.Handler;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.EditText;
 import android.widget.RelativeLayout;
@@ -14,23 +15,24 @@ import com.rileystrickland.pokesposed.service.movementModes;
 
 public class Settings extends AppCompatActivity {
 
-    private Messenger messenger = null;
     private Switch heSwitch = null;
     private Switch mmSwitch = null;
     private RelativeLayout walkingLayout = null;
     private EditText walkingSpeed = null;
     private EditText walkingVariance = null;
+    private Switch lwSwitch = null;
+    private networkManager networking;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_settings);
 
-        Intent intent = getIntent();
-
         heSwitch = (Switch) findViewById(R.id.switch1);
 
         mmSwitch = (Switch) findViewById(R.id.switch2);
+
+        lwSwitch = (Switch) findViewById(R.id.switch3);
 
         walkingLayout = (RelativeLayout) findViewById(R.id.walkingLayout);
 
@@ -38,14 +40,10 @@ public class Settings extends AppCompatActivity {
 
         walkingVariance = (EditText) findViewById(R.id.editText2);
 
-        if (intent != null)
-        {
-            messenger = intent.getParcelableExtra("messenger");
-        }
-
-        if (heSwitch != null && mmSwitch != null && walkingSpeed != null && walkingVariance != null)
+        if (heSwitch != null && mmSwitch != null && walkingSpeed != null && walkingVariance != null && lwSwitch != null)
         {
             heSwitch.setChecked(applicationSettings.hookEnabled);
+            lwSwitch.setChecked(applicationSettings.walkloop);
             if (applicationSettings.movementMode == movementModes.Walk)
             {
                 mmSwitch.setChecked(true);
@@ -64,8 +62,6 @@ public class Settings extends AppCompatActivity {
 
     public void onSaveClick(View view)
     {
-        if (messenger != null)
-        {
             Bundle bundle = new Bundle();
             bundle.putBoolean("he", heSwitch.isChecked());
             if (mmSwitch.isChecked())
@@ -76,16 +72,23 @@ public class Settings extends AppCompatActivity {
             }
             bundle.putInt("ms", Integer.parseInt(walkingSpeed.getText().toString()));
             bundle.putDouble("mv", Double.parseDouble(walkingVariance.getText().toString()));
-            networkCommands.sendPrefernces(messenger, bundle);
-        }
-        applicationSettings.inSettings = false;
+            bundle.putBoolean("wl", lwSwitch.isChecked());
+            networkCommands.sendPrefernces(networking.Service, bundle);
         finish();
     }
 
     public void onCancelClick(View view)
     {
-        applicationSettings.inSettings = false;
         finish();
+    }
+
+    public void onCreditsClick(View view)
+    {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setMessage("Programmed by SubstituteCS\n\n\nGreets To\n\n/r/pokemongospoofing\n/u/LuminescentReps\ncfharp@Github\nBaIanced@Github\n\n\n+ All others who I may have missed.");
+        builder.setPositiveButton("Close", null);
+        builder.setTitle("Credits");
+        builder.create().show();
     }
 
     public void onWalkToggle(View view)
@@ -97,5 +100,23 @@ public class Settings extends AppCompatActivity {
         }else{
             walkingLayout.setVisibility(View.INVISIBLE);
         }
+    }
+
+
+    @Override
+    protected void onStart()
+    {
+        super.onStart();
+        networking = new networkManager(this, new Handler()); //Settings doesn't handle any incoming information.
+        networking.connect();
+        Log.i("pinfo", "SA START");
+    }
+
+    @Override
+    public void onStop()
+    {
+        super.onStop();
+        networking.disconnect();
+        Log.i("pinfo", "SA STOP");
     }
 }

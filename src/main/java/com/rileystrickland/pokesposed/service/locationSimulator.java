@@ -3,24 +3,16 @@ package com.rileystrickland.pokesposed.service;
 import android.location.Location;
 import android.os.Handler;
 import com.google.android.gms.maps.model.LatLng;
+import com.rileystrickland.pokesposed.interfaces.locationSimulatorListener;
+
 import java.util.ArrayList;
 import java.util.Random;
 
 public class locationSimulator {
-    public interface listener {
-        void onLocationChanged(LatLng newLatLng);
-
-        void onFirstCoordRemoved();
-
-        void onCoordCleared();
-
-        void onCoordAdded(LatLng newLatLng);
-    }
-
-    public listener listener;
+    public locationSimulatorListener listener;
 
 
-    locationSimulator(listener listener) {
+    locationSimulator(locationSimulatorListener listener) {
         this.listener = listener;
     }
 
@@ -84,23 +76,40 @@ public class locationSimulator {
         listener.onFirstCoordRemoved();
     }
 
+    private void cycleFirstLatLng()
+    {
+        if (coords.size() > 0)
+        {
+            coords.add(coords.get(0));
+            coords.remove(0);
+        }
+        listener.onFirstCoordCycled();
+    }
+
     public void clearLatLng()
     {
         coords.clear();
         listener.onCoordCleared();
     }
 
+    public void undoLatLng()
+    {
+        if (coords.size() > 0)
+        {
+            coords.remove(coords.size() - 1);
+        }
+        listener.onCoordUndo();
+    }
 
 
     private void Update()
     {
-
         if (lastLatLng == null)
         {
             lastLatLng = serviceSettings.savedLatLng;
         }
         NextLatLng();
-        listener.onLocationChanged(lastLatLng);
+        listener.onLocationChanged(lastLatLng, (float) ang);
     }
 
     private void NextLatLng()
@@ -118,15 +127,19 @@ public class locationSimulator {
             nextLatLng = coords.get(0); //get 1st
                     if (inDistance())
                     {
-                        ang = -1;
                         lastLatLng = nextLatLng;
-                        removeFirstLatLng();
+                        if (serviceSettings.walkloop && coords.size() > 1)
+                        {
+                            cycleFirstLatLng();
+                        }else{
+
+                            removeFirstLatLng();
+                        }
                     }else{
                         lastLatLng = LatLngFromLatLng(lastLatLng, calculatedSpeed, ang);
                     }
         }else{
             lastLatLng = coords.get(coords.size() - 1); //get last, we're tp'ing
-            ang = -1;
             clearLatLng();
         }
 

@@ -8,5 +8,6 @@ public class applicationSettings {
     public static boolean hookEnabled = true;
     public static int movementSpeed = 8;
     public static double movementVariance = 1.5;
-    public static boolean inSettings = true;
+    public static boolean walkloop = false;
+    public static boolean hookRunning = false;
 }

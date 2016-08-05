@@ -3,17 +3,22 @@ package com.rileystrickland.pokesposed.service;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
+import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Message;
 import android.os.Messenger;
+import android.util.Log;
+
 import com.google.android.gms.maps.model.LatLng;
+import com.rileystrickland.pokesposed.interfaces.locationSimulatorListener;
 import com.rileystrickland.pokesposed.networkCommands;
+
 import java.util.ArrayList;
 
 
-public class worker extends Service implements locationSimulator.listener {
+public class worker extends Service implements locationSimulatorListener {
 
 
     private ArrayList<Messenger> clients = new ArrayList<>();
@@ -21,46 +26,32 @@ public class worker extends Service implements locationSimulator.listener {
     private Messenger mMessenger = new Messenger(new IncomingHandler());
     private Context context = null;
 
-    private void dropClient(Messenger messenger)
-    {
-        clients.remove(messenger);
-
-    }
-
     class IncomingHandler extends Handler {
         @Override
         public void handleMessage(Message message) {
+            Bundle bundle;
             switch (message.what) {
                 case messageCode.MSG_CON:
-
                     if (message.replyTo != null) {
                         clients.add(message.replyTo);
 
-                        Bundle bundle = new Bundle();
+                        bundle = new Bundle();
                         bundle.putDouble("x", (float) serviceSettings.savedLatLng.latitude);
                         bundle.putDouble("y", (float) serviceSettings.savedLatLng.longitude);
                         bundle.putBoolean("he", serviceSettings.hookEnabled);
                         bundle.putInt("mm", serviceSettings.movementMode);
                         bundle.putInt("ms", serviceSettings.movementSpeed);
                         bundle.putDouble("mv", serviceSettings.movementVariance);
-
-                        if (!networkCommands.sendPrefernces(message.replyTo, bundle))
-                        {
-                            dropClient(message.replyTo);
-                        }
-                    }
-                    break;
-
-                case messageCode.MSG_DSC:
-                    if (message.replyTo != null) {
-                        dropClient(message.replyTo);
+                        bundle.putBoolean("wl", serviceSettings.walkloop);
+                        bundle.putBoolean("hr", serviceSettings.hookRunning);
+                        networkCommands.sendPrefernces(message.replyTo, bundle);
                     }
                     break;
 
                 case messageCode.MSG_ADD_LL:
-                    Bundle data = message.getData();
-                    if (data.containsKey("x") && data.containsKey("y")) {
-                        LatLng addLatLng = new LatLng(data.getDouble("x", 0), data.getDouble("y", 0)); //shouldn't use the defaults due to check above
+                    bundle = message.getData();
+                    if (bundle.containsKey("x") && bundle.containsKey("y")) {
+                        LatLng addLatLng = new LatLng(bundle.getDouble("x", 0), bundle.getDouble("y", 0)); //shouldn't use the defaults due to check above
                         LocationSimulator.addLatLng(addLatLng);
                     }
                     break;
@@ -69,8 +60,12 @@ public class worker extends Service implements locationSimulator.listener {
                     LocationSimulator.clearLatLng();
                     break;
 
+                case messageCode.MSG_UNDO_LL:
+                    LocationSimulator.undoLatLng();
+                    break;
+
                 case messageCode.MSG_PREF:
-                    Bundle bundle = message.getData();
+                    bundle = message.getData();
                     serviceSettings.hookEnabled = bundle.getBoolean("he", true);
                     if (serviceSettings.hookEnabled)
                     {
@@ -81,6 +76,7 @@ public class worker extends Service implements locationSimulator.listener {
                     serviceSettings.movementMode = bundle.getInt("mm", movementModes.Teleport);
                     serviceSettings.movementSpeed = bundle.getInt("ms", 8);
                     serviceSettings.movementVariance = bundle.getDouble("mv", 0.5);
+                    serviceSettings.walkloop = bundle.getBoolean("wl", false);
                     LocationSimulator.setSpeed(serviceSettings.movementSpeed, serviceSettings.movementVariance);
                     serviceSettings.Save(context);
 
@@ -91,11 +87,29 @@ public class worker extends Service implements locationSimulator.listener {
                     bundle.putInt("mm", serviceSettings.movementMode);
                     bundle.putInt("ms", serviceSettings.movementSpeed);
                     bundle.putDouble("mv", serviceSettings.movementVariance);
-                    for (int i = clients.size() - 1; i >= 0; i--) {
-                        if (!networkCommands.sendPrefernces(clients.get(i), bundle))
+                    bundle.putBoolean("wl", serviceSettings.walkloop);
+                    bundle.putBoolean("hr", serviceSettings.hookRunning);
+                    for (Messenger messenger : clients)
+                    {
+                        if (!networkCommands.sendPrefernces(messenger, bundle))
                         {
-                            dropClient(clients.get(i));
+
                         }
+                    }
+                    break;
+
+                case messageCode.MSG_PP:
+                    serviceSettings.hookRunning = !serviceSettings.hookRunning;
+                    if (serviceSettings.hookRunning)
+                    {
+                        LocationSimulator.Start();
+
+                    }else{
+                        LocationSimulator.Stop();
+                    }
+                    for (Messenger messenger : clients)
+                    {
+                        networkCommands.sendPlayPause(messenger);
                     }
                     break;
 
@@ -116,6 +130,7 @@ public class worker extends Service implements locationSimulator.listener {
     public void onCreate() {
         super.onCreate();
         serviceSettings.Load(context);
+        LocationSimulator.setSpeed(serviceSettings.movementSpeed, serviceSettings.movementVariance);
         if (serviceSettings.hookEnabled)
         {
             LocationSimulator.Start();
@@ -125,9 +140,6 @@ public class worker extends Service implements locationSimulator.listener {
     @Override
     public void onDestroy() {
         super.onDestroy();
-        serviceSettings.savedLatLng = LocationSimulator.getLastLatLng();
-        LocationSimulator.Stop();
-        serviceSettings.Save(context);
     }
 
 
@@ -138,6 +150,16 @@ public class worker extends Service implements locationSimulator.listener {
 
     @Override
     public boolean onUnbind(Intent intent) {
+        try
+        {
+            serviceSettings.savedLatLng = LocationSimulator.getLastLatLng();
+            LocationSimulator.Stop();
+            serviceSettings.Save(context);
+            Log.i("pinfo", "SAVED");
+        }catch (Throwable e)
+            {
+
+            }
         return false;
     }
 
@@ -145,45 +167,54 @@ public class worker extends Service implements locationSimulator.listener {
     EVENT CODE
      */
     @Override
-    public void onLocationChanged(LatLng newLatLng) {
+    public void onLocationChanged(LatLng newLatLng, float bearing) {
         serviceSettings.savedLatLng = newLatLng;
-        for (int i = clients.size() - 1; i >= 0; i--) {
-            if (!networkCommands.sendPosition(clients.get(i), newLatLng))
-            {
-                dropClient(clients.get(i));
-            }
+        for (Messenger messenger : clients)
+        {
+            networkCommands.sendPosition(messenger, newLatLng, bearing);
         }
     }
 
     @Override
     public void onFirstCoordRemoved() {
-        for (int i = clients.size() - 1; i >= 0; i--) {
-            if (!networkCommands.sendFirstCleared(clients.get(i)))
-            {
-                dropClient(clients.get(i));
-            }
+        for (Messenger messenger : clients)
+        {
+            networkCommands.sendFirstCleared(messenger);
         }
     }
 
     @Override
+    public void onFirstCoordCycled() {
+        for (Messenger messenger : clients)
+        {
+            networkCommands.sendFirstCycled(messenger);
+        }
+    }
+    @Override
     public void onCoordCleared() {
-        for (int i = clients.size() - 1; i >= 0; i--) {
-            if (!networkCommands.sendClearLatLng(clients.get(i)))
-            {
-                dropClient(clients.get(i));
-            }
+        for (Messenger messenger : clients)
+        {
+            networkCommands.sendClearLatLng(messenger);
+        }
+    }
+
+    @Override
+    public void onCoordUndo() {
+        for (Messenger messenger : clients)
+        {
+            networkCommands.sendUndoLatLng(messenger);
         }
     }
 
     @Override
     public void onCoordAdded(LatLng newLatLng)
     {
-        for (int i = clients.size() - 1; i >= 0; i--) {
-            if (!networkCommands.sendNewLatLng(clients.get(i), newLatLng))
-            {
-                dropClient(clients.get(i));
-            }
+
+        for (Messenger messenger : clients)
+        {
+            networkCommands.sendNewLatLng(messenger, newLatLng);
         }
+
     }
 
 }
