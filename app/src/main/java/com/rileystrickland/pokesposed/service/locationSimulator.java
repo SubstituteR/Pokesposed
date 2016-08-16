@@ -2,14 +2,20 @@ package com.rileystrickland.pokesposed.service;
 
 import android.location.Location;
 import android.os.Handler;
+import android.util.Log;
+
 import com.google.android.gms.maps.model.LatLng;
 import com.rileystrickland.pokesposed.interfaces.locationSimulatorListener;
 
 import java.util.ArrayList;
 import java.util.Random;
 
+import de.robv.android.xposed.XposedBridge;
+
 public class locationSimulator {
+    private static final String TAG = locationSimulator.class.getSimpleName();
     public locationSimulatorListener listener;
+    private LatLng stationaryLatLng;
 
 
     locationSimulator(locationSimulatorListener listener) {
@@ -18,7 +24,7 @@ public class locationSimulator {
 
 
     private ArrayList<LatLng> coords = new ArrayList<>();
-    private LatLng lastLatLng = null;
+    private LatLng currentLatLng = null;
     private LatLng nextLatLng = null;
     private int movementMode = movementModes.Teleport;
     private double ang = 0;
@@ -28,10 +34,10 @@ public class locationSimulator {
     private Random rngesus = new Random();
     private Handler looper = null;
 
-    public LatLng getLastLatLng()
+    public LatLng getCurrentLatLng()
 
     {
-        return lastLatLng;
+        return currentLatLng;
     }
 
     private Runnable runnable = new Runnable() {
@@ -104,12 +110,12 @@ public class locationSimulator {
 
     private void Update()
     {
-        if (lastLatLng == null)
+        if (currentLatLng == null)
         {
-            lastLatLng = serviceSettings.savedLatLng;
+            currentLatLng = serviceSettings.savedLatLng;
         }
         NextLatLng();
-        listener.onLocationChanged(lastLatLng, (float) ang);
+        listener.onLocationChanged(currentLatLng, (float) ang);
     }
 
     private void NextLatLng()
@@ -118,16 +124,30 @@ public class locationSimulator {
 
         if (coords.isEmpty())
         {
-            return; //nothing can change
+            // Add jitter to the calculated GPS location. No real device
+            // would stand at the exact same GPS location for ages
+            if (stationaryLatLng == null) {
+                stationaryLatLng = currentLatLng;
+            }
+
+            if (Math.random() > .3) {
+                Log.d(TAG, "Randomizing stationary GPS location..");
+                randomizeLocation(stationaryLatLng, 1);
+            } else {
+                currentLatLng = stationaryLatLng; // jumping back
+                Log.d(TAG, "Skipping randomization of stationary GPS location..");
+            }
+            return;
         }
 
         if (movementMode == movementModes.Walk)
         {
+            stationaryLatLng = null;
             calculatedSpeed = getNextSpeed();
             nextLatLng = coords.get(0); //get 1st
                     if (inDistance())
                     {
-                        lastLatLng = nextLatLng;
+                        currentLatLng = nextLatLng;
                         if (serviceSettings.walkloop && coords.size() > 1)
                         {
                             cycleFirstLatLng();
@@ -136,13 +156,63 @@ public class locationSimulator {
                             removeFirstLatLng();
                         }
                     }else{
-                        lastLatLng = LatLngFromLatLng(lastLatLng, calculatedSpeed, ang);
+                        currentLatLng = LatLngFromLatLng(currentLatLng, calculatedSpeed, ang);
                     }
         }else{
-            lastLatLng = coords.get(coords.size() - 1); //get last, we're tp'ing
+            currentLatLng = coords.get(coords.size() - 1); //get last, we're tp'ing
             clearLatLng();
         }
+    }
 
+    // Stolen from http://gis.stackexchange.com/a/68275
+    private void randomizeLocation(LatLng latLng, int radius) {
+        Random random = new Random();
+
+        // Convert radius from meters to degrees
+        double radiusInDegrees = radius / 111000f;
+
+        double u = random.nextDouble();
+        double v = random.nextDouble();
+        double w = radiusInDegrees * Math.sqrt(u);
+        double t = 2 * Math.PI * v;
+        double x = w * Math.cos(t);
+        double lonRandomization = w * Math.sin(t);
+
+        // Adjust the x-coordinate for the shrinking of the east-west distances
+        double latRandomization = x / Math.cos(latLng.longitude);
+
+        double newLat = latRandomization + latLng.latitude;
+        double newLon = lonRandomization + latLng.longitude;
+
+        double dist = distance(latLng.latitude, newLat, latLng.longitude, newLon, 1, 1);
+
+        if (dist < radius) {
+            Log.d(TAG, String.format("Dist %s is a safe jump.. changing currentLatLng", dist));
+            currentLatLng = new LatLng(newLat, newLon);
+        } else {
+            Log.d(TAG, String.format("Dist %s is an unsafe jump.. not changing currentLatLng to old pos", dist));
+            currentLatLng = stationaryLatLng;
+        }
+    }
+
+    public static double distance(double lat1, double lat2, double lon1,
+                                  double lon2, double el1, double el2) {
+
+        final int R = 6371; // Radius of the earth
+
+        Double latDistance = Math.toRadians(lat2 - lat1);
+        Double lonDistance = Math.toRadians(lon2 - lon1);
+        Double a = Math.sin(latDistance / 2) * Math.sin(latDistance / 2)
+            + Math.cos(Math.toRadians(lat1)) * Math.cos(Math.toRadians(lat2))
+            * Math.sin(lonDistance / 2) * Math.sin(lonDistance / 2);
+        Double c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+        double distance = R * c * 1000; // convert to meters
+
+        double height = el1 - el2;
+
+        distance = Math.pow(distance, 2) + Math.pow(height, 2);
+
+        return Math.sqrt(distance);
     }
 
     private double getNextSpeed()
@@ -203,7 +273,7 @@ public class locationSimulator {
     private boolean inDistance() //since we check this before updating, we can take the bearing value.
     {
         float[] d = {0,0};
-        Location.distanceBetween(lastLatLng.latitude, lastLatLng.longitude,nextLatLng.latitude,nextLatLng.longitude,d);
+        Location.distanceBetween(currentLatLng.latitude, currentLatLng.longitude,nextLatLng.latitude,nextLatLng.longitude,d);
 
         if (d[0] <= 1.5 * calculatedSpeed)
         {

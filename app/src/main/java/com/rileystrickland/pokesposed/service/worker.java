@@ -3,7 +3,6 @@ package com.rileystrickland.pokesposed.service;
 import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
-import android.location.Location;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
@@ -152,7 +151,7 @@ public class worker extends Service implements locationSimulatorListener {
     public boolean onUnbind(Intent intent) {
         try
         {
-            serviceSettings.savedLatLng = LocationSimulator.getLastLatLng();
+            serviceSettings.savedLatLng = LocationSimulator.getCurrentLatLng();
             LocationSimulator.Stop();
             serviceSettings.Save(context);
             Log.i("pinfo", "SAVED");
