@@ -130,11 +130,10 @@ public class locationSimulator {
                 stationaryLatLng = currentLatLng;
             }
 
-            if (Math.random() > .3) {
+            if (Math.random() > .7) {
                 Log.d(TAG, "Randomizing stationary GPS location..");
-                randomizeLocation(stationaryLatLng, 1);
+                randomizeLocation(stationaryLatLng, 2);
             } else {
-                currentLatLng = stationaryLatLng; // jumping back
                 Log.d(TAG, "Skipping randomization of stationary GPS location..");
             }
             return;
